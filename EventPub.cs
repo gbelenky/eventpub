@@ -30,7 +30,8 @@ namespace gbelenky.EventPub
             await Task.WhenAll(eventList);
 
             eventTarget.SetNextSeries();
-            //context.ContinueAsNew(eventTarget);           
+            context.ContinueAsNew(eventTarget);           
+            
             return;
         }
 
@@ -38,86 +39,29 @@ namespace gbelenky.EventPub
         public static async Task EventScheduler(
             [OrchestrationTrigger] IDurableOrchestrationContext context)
         {
-            // Run multiple eventPu flows in parallel
+            List<EventCalendar> eventCalendars = context.GetInput<List<EventCalendar>>();
+
+            // Run multiple eventPublication flows in parallel
             var eventPubTasks = new List<Task>();
 
-            // for debugging purposes
-            DateTime startTime = context.CurrentUtcDateTime;
-
-            EventCalendar arizonaCalendar = new EventCalendar
+            foreach(EventCalendar cal in eventCalendars)
             {
-                Name = "Arizona",
-                EventList = new List<DateTime>
-                {
-                    /*
-                    new DateTime(2022, 02, 25, 10, 25, 0),
-                    new DateTime(2022, 02, 25, 10, 25, 30),
-                    new DateTime(2022, 02, 25, 10, 26, 0)
-                    */
-                    startTime.AddMinutes(1).AddSeconds(0),
-                    startTime.AddMinutes(1).AddSeconds(30),
-                    startTime.AddMinutes(1).AddSeconds(60)
-                },
-                NextDay = 0,
-                NextHour = 0,
-                NextMinute = 1
-            };
-
-            EventCalendar californiaCalendar = new EventCalendar
-            {
-                Name = "California",
-                EventList = new List<DateTime>
-                {
-                    /*
-                    new DateTime(2022, 02, 25, 10, 25, 0),
-                    new DateTime(2022, 02, 25, 10, 25, 45),
-                    new DateTime(2022, 02, 25, 10, 26, 5)
-                    */
-                    startTime.AddMinutes(1).AddSeconds(10),
-                    startTime.AddMinutes(1).AddSeconds(20),
-                    startTime.AddMinutes(1).AddSeconds(45)
-
-                },
-                NextDay = 0,
-                NextHour = 0,
-                NextMinute = 2
-            };
-
-
-            EventCalendar washingtonCalendar = new EventCalendar
-            {
-                Name = "Washington",
-                EventList = new List<DateTime>
-                {
-                    /*
-                    new DateTime(2022, 02, 25, 10, 25, 10),
-                    new DateTime(2022, 02, 25, 10, 25, 20),
-                    new DateTime(2022, 02, 25, 10, 25, 30)
-                    */
-                    startTime.AddMinutes(2).AddSeconds(0),
-                    startTime.AddMinutes(2).AddSeconds(30),
-                    startTime.AddMinutes(2).AddSeconds(45)
-                },
-                NextDay = 0,
-                NextHour = 0,
-                NextMinute = 2
-            };
-
-
-            Task arizonaTask = context.CallSubOrchestratorAsync("EventPublisher", arizonaCalendar);
-            eventPubTasks.Add(arizonaTask);
-
-            Task washingtonTask = context.CallSubOrchestratorAsync("EventPublisher", washingtonCalendar);
-            eventPubTasks.Add(washingtonTask);
-
-            Task californiaTask = context.CallSubOrchestratorAsync("EventPublisher", californiaCalendar);
-            eventPubTasks.Add(californiaTask);
-
+                Task calTask = context.CallSubOrchestratorAsync("EventPublisher", cal);
+                eventPubTasks.Add(calTask);
+            }
+ 
             await Task.WhenAll(eventPubTasks);
 
+            /*
+            // schedule next event series
+            foreach(EventCalendar cal in eventCalendars)
+            {
+                cal.SetNextSeries();
+            }
+            
 
-            //eventTarget.SetNextSeries();
-            context.ContinueAsNew(null);           
+            context.ContinueAsNew(eventCalendars);
+            */
         }
 
         [FunctionName("EventWorker")]
@@ -133,12 +77,66 @@ namespace gbelenky.EventPub
             [DurableClient] IDurableOrchestrationClient starter,
             ILogger log)
         {
-            // Function input comes from the request content.
-            string instanceId = await starter.StartNewAsync("EventScheduler", null);
+            List<EventCalendar> eventCalendars = createCalendars();
+            string instanceId = await starter.StartNewAsync("EventScheduler", eventCalendars);
 
             log.LogInformation($"Started orchestration with ID = '{instanceId}'.");
 
             return starter.CreateCheckStatusResponse(req, instanceId);
+        }
+
+        private static List<EventCalendar> createCalendars()
+        {
+            List<EventCalendar> allCalendars = new List<EventCalendar>();
+
+            EventCalendar arizonaCalendar = new EventCalendar
+            {
+                Name = "Arizona",
+                EventList = new List<DateTime>
+                {
+                    new DateTime(2022, 02, 25, 16, 41, 0),
+                    new DateTime(2022, 02, 25, 16, 41, 5),
+                    new DateTime(2022, 02, 25, 16, 41, 10)
+                },
+                NextDay = 0,
+                NextHour = 0,
+                NextMinute = 3
+            };
+
+            EventCalendar californiaCalendar = new EventCalendar
+            {
+                Name = "California",
+                EventList = new List<DateTime>
+                {
+                    new DateTime(2022, 02, 25, 16, 41, 0),
+                    new DateTime(2022, 02, 25, 16, 41, 10),
+                    new DateTime(2022, 02, 25, 16, 41, 20)
+                },
+                NextDay = 0,
+                NextHour = 0,
+                NextMinute = 3
+            };
+
+
+            EventCalendar washingtonCalendar = new EventCalendar
+            {
+                Name = "Washington",
+                EventList = new List<DateTime>
+                {
+                    new DateTime(2022, 02, 25, 16, 41, 0),
+                    new DateTime(2022, 02, 25, 16, 41, 20),
+                    new DateTime(2022, 02, 25, 16, 41, 40)
+                },
+                NextDay = 0,
+                NextHour = 0,
+                NextMinute = 3
+            };
+
+            allCalendars.Add(arizonaCalendar);
+            allCalendars.Add(californiaCalendar);
+            allCalendars.Add(washingtonCalendar);
+
+            return allCalendars;
         }
     }
 }
