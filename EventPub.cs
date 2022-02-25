@@ -28,6 +28,9 @@ namespace gbelenky.EventPub
             }
 
             await Task.WhenAll(eventList);
+
+            eventTarget.SetNextSeries();
+            //context.ContinueAsNew(eventTarget);           
             return;
         }
 
@@ -38,38 +41,66 @@ namespace gbelenky.EventPub
             // Run multiple eventPu flows in parallel
             var eventPubTasks = new List<Task>();
 
+            // for debugging purposes
+            DateTime startTime = context.CurrentUtcDateTime;
+
             EventCalendar arizonaCalendar = new EventCalendar
             {
                 Name = "Arizona",
-                EventList = new List<DateTime> 
+                EventList = new List<DateTime>
                 {
-                    new DateTime(2022, 02, 24, 15, 00, 0),
-                    new DateTime(2022, 02, 24, 15, 00, 30),
-                    new DateTime(2022, 02, 24, 15, 01, 0)
-                }
+                    /*
+                    new DateTime(2022, 02, 25, 10, 25, 0),
+                    new DateTime(2022, 02, 25, 10, 25, 30),
+                    new DateTime(2022, 02, 25, 10, 26, 0)
+                    */
+                    startTime.AddMinutes(1).AddSeconds(0),
+                    startTime.AddMinutes(1).AddSeconds(30),
+                    startTime.AddMinutes(1).AddSeconds(60)
+                },
+                NextDay = 0,
+                NextHour = 0,
+                NextMinute = 1
             };
 
             EventCalendar californiaCalendar = new EventCalendar
             {
                 Name = "California",
-                EventList = new List<DateTime> 
+                EventList = new List<DateTime>
                 {
-                    new DateTime(2022, 02, 24, 15, 00, 0),
-                    new DateTime(2022, 02, 24, 15, 00, 45),
-                    new DateTime(2022, 02, 24, 15, 01, 5)
-                }
+                    /*
+                    new DateTime(2022, 02, 25, 10, 25, 0),
+                    new DateTime(2022, 02, 25, 10, 25, 45),
+                    new DateTime(2022, 02, 25, 10, 26, 5)
+                    */
+                    startTime.AddMinutes(1).AddSeconds(10),
+                    startTime.AddMinutes(1).AddSeconds(20),
+                    startTime.AddMinutes(1).AddSeconds(45)
+
+                },
+                NextDay = 0,
+                NextHour = 0,
+                NextMinute = 2
             };
 
 
             EventCalendar washingtonCalendar = new EventCalendar
             {
                 Name = "Washington",
-                EventList = new List<DateTime> 
+                EventList = new List<DateTime>
                 {
-                    new DateTime(2022, 02, 24, 15, 00, 10),
-                    new DateTime(2022, 02, 24, 15, 00, 20),
-                    new DateTime(2022, 02, 24, 15, 00, 30)
-                }
+                    /*
+                    new DateTime(2022, 02, 25, 10, 25, 10),
+                    new DateTime(2022, 02, 25, 10, 25, 20),
+                    new DateTime(2022, 02, 25, 10, 25, 30)
+                    */
+                    startTime.AddMinutes(2).AddSeconds(0),
+                    startTime.AddMinutes(2).AddSeconds(30),
+                    startTime.AddMinutes(2).AddSeconds(45)
+                },
+                NextDay = 0,
+                NextHour = 0,
+                NextMinute = 2
             };
 
 
@@ -83,12 +114,16 @@ namespace gbelenky.EventPub
             eventPubTasks.Add(californiaTask);
 
             await Task.WhenAll(eventPubTasks);
+
+
+            //eventTarget.SetNextSeries();
+            context.ContinueAsNew(null);           
         }
 
         [FunctionName("EventWorker")]
         public static string PublishEvent([ActivityTrigger] string name, ILogger log)
         {
-            log.LogInformation($"Publishing Events for {name}.");
+            log.LogInformation($"___***Publishing Events for {name}.***___");
             return $"Events for {name} were published";
         }
 
