@@ -7,6 +7,8 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using System.Text.Json.Serialization; 
 
 namespace gbelenky.EventPub
 {
@@ -30,8 +32,8 @@ namespace gbelenky.EventPub
             await Task.WhenAll(eventList);
 
             eventTarget.SetNextSeries();
-            context.ContinueAsNew(eventTarget);           
-            
+            context.ContinueAsNew(eventTarget);
+
             return;
         }
 
@@ -44,24 +46,14 @@ namespace gbelenky.EventPub
             // Run multiple eventPublication flows in parallel
             var eventPubTasks = new List<Task>();
 
-            foreach(EventCalendar cal in eventCalendars)
+            foreach (EventCalendar cal in eventCalendars)
             {
                 Task calTask = context.CallSubOrchestratorAsync("EventPublisher", cal);
                 eventPubTasks.Add(calTask);
             }
- 
+
             await Task.WhenAll(eventPubTasks);
-
-            /*
-            // schedule next event series
-            foreach(EventCalendar cal in eventCalendars)
-            {
-                cal.SetNextSeries();
-            }
-            
-
-            context.ContinueAsNew(eventCalendars);
-            */
+            return;
         }
 
         [FunctionName("EventWorker")]
@@ -94,9 +86,9 @@ namespace gbelenky.EventPub
                 Name = "Arizona",
                 EventList = new List<DateTime>
                 {
-                    new DateTime(2022, 02, 25, 16, 41, 0),
-                    new DateTime(2022, 02, 25, 16, 41, 5),
-                    new DateTime(2022, 02, 25, 16, 41, 10)
+                    new DateTime(2022, 02, 26, 15, 01, 0),
+                    new DateTime(2022, 02, 26, 15, 01, 5),
+                    new DateTime(2022, 02, 26, 15, 01, 10)
                 },
                 NextDay = 0,
                 NextHour = 0,
@@ -108,9 +100,9 @@ namespace gbelenky.EventPub
                 Name = "California",
                 EventList = new List<DateTime>
                 {
-                    new DateTime(2022, 02, 25, 16, 41, 0),
-                    new DateTime(2022, 02, 25, 16, 41, 10),
-                    new DateTime(2022, 02, 25, 16, 41, 20)
+                    new DateTime(2022, 02, 26, 15, 01, 0),
+                    new DateTime(2022, 02, 26, 15, 01, 10),
+                    new DateTime(2022, 02, 26, 15, 01, 20)
                 },
                 NextDay = 0,
                 NextHour = 0,
@@ -123,9 +115,9 @@ namespace gbelenky.EventPub
                 Name = "Washington",
                 EventList = new List<DateTime>
                 {
-                    new DateTime(2022, 02, 25, 16, 41, 0),
-                    new DateTime(2022, 02, 25, 16, 41, 20),
-                    new DateTime(2022, 02, 25, 16, 41, 40)
+                    new DateTime(2022, 02, 26, 15, 01, 0),
+                    new DateTime(2022, 02, 26, 15, 01, 20),
+                    new DateTime(2022, 02, 26, 15, 01, 40)
                 },
                 NextDay = 0,
                 NextHour = 0,
@@ -137,6 +129,39 @@ namespace gbelenky.EventPub
             allCalendars.Add(washingtonCalendar);
 
             return allCalendars;
+        }
+
+        [FunctionName("CancelScheduledEvents")]
+        public static async Task CancelScheduledEvents(
+    [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestMessage req,
+    [DurableClient] IDurableOrchestrationClient client,
+    ILogger log)
+        {
+            var noFilter = new OrchestrationStatusQueryCondition();
+            OrchestrationStatusQueryResult result = await client.ListInstancesAsync(
+                noFilter,
+                CancellationToken.None);
+            foreach (DurableOrchestrationStatus instance in result.DurableOrchestrationState)
+            {
+                //log.LogInformation(JsonSerializer.Serialize(instance));
+                if(instance.Name.Equals("EventPublisher") && (instance.RuntimeStatus==OrchestrationRuntimeStatus.ContinuedAsNew))
+                {
+                    await client.TerminateAsync(instance.InstanceId, "EventPublisher graceful shutdown");
+                }
+            }
+
+             foreach (DurableOrchestrationStatus instance in result.DurableOrchestrationState)
+            {
+                //log.LogInformation(JsonSerializer.Serialize(instance));
+                if(instance.Name.Equals("EventScheduler") && (instance.RuntimeStatus==OrchestrationRuntimeStatus.Completed))
+                {
+                    await client.TerminateAsync(instance.InstanceId, "EventScheduler graceful shutdown");
+                }
+            }
+
+            // Note: ListInstancesAsync only returns the first page of results.
+            // To request additional pages provide the result.ContinuationToken
+            // to the OrchestrationStatusQueryCondition's ContinuationToken property.
         }
     }
 }
