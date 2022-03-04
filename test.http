@@ -1,0 +1,38 @@
+
+POST http://localhost:7071/api/StartScheduler HTTP/1.1
+Content-Type: application/json
+
+{
+        "Name": "Recurrent 5 Second event",
+        "StartTime": "2022-03-04T10:59:00+01:00", 
+        "NextDay": 0,
+        "NextHour": 0,
+        "NextMinute": 0,
+        "NextSecond": 5
+}
+
+###
+POST http://localhost:7071/api/StartScheduler HTTP/1.1
+Content-Type: application/json
+
+{
+        "Name": "Recurrent 10 Second event",
+        "StartTime": "2022-03-04T11:00:00+01:00", 
+        "NextDay": 0,
+        "NextHour": 0,
+        "NextMinute": 0,
+        "NextSecond": 10
+}
+
+###
+POST http://localhost:7071/api/StartScheduler HTTP/1.1
+Content-Type: application/json
+
+{
+        "Name": "Recurrent 20 Second event",
+        "StartTime": "2022-03-04T11:01:00+01:00", 
+        "NextDay": 0,
+        "NextHour": 0,
+        "NextMinute": 0,
+        "NextSecond": 20
+}
